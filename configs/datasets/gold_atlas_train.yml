@@ -1,0 +1,24 @@
+# Configuration for training Gold Atlas data
+data:
+  dataset: "../data/test_datasets/gold_atlas_train.json"
+  data_dir: "../data/test_datasets/gold_atlas"
+  target_sequence: "ct"
+  slice_thickness: 5
+  guidance_sequences:
+    - "t1"
+    - "t2"
+  skull_strip: 0.0
+  crop_to_brain_margin:
+    - 0
+    - 0
+    - 0
+  batch_size: 4  # 96 / 4 GPUS / ~4x higher resolution
+  random_slicing_direction: false
+  img_size:
+    - 480
+    - 480
+trainer:
+  num_val_samples: 24
+  val_cache_path: "../data/cache/gold_atlas/val_slices_24"
+  weighting: "none"  # "brain"
+  n_epochs: 2000  # 20000 / 10

@@ -1,0 +1,14 @@
+# basic model wo 2.5D
+data:
+  slice_thickness: 1
+  random_slicing_direction: false  # alternate slicing between views
+  slicing_direction: axial
+model:
+  unet:
+    in_channels: 3
+    out_channels: 1
+  loss: "l2"
+trainer:
+  val_interval: 200
+  n_epochs: 20000
+  val_cache_path: "../data/cache/RS/val_slices_64"  # fixed images to be used for validation --> change if input dataset changes

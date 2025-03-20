@@ -1,0 +1,6 @@
+# sagittal slicing direction
+data:
+  slicing_direction: sagittal
+  random_slicing_direction: False
+trainer:
+  val_cache_path: "../data/cache/RS/val_slices_sagittal_64"

@@ -1,0 +1,4 @@
+# WMH test set for inference
+data:
+  dataset: "../data/RS/RS_wmh_test.json"
+  data_dir: "../data/RS/conformed_test"

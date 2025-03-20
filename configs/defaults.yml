@@ -1,0 +1,53 @@
+# Configuration for data loading and training
+data:
+  dataset: "../data/RS/RS_train_split.json"
+  data_dir: "../data/RS/conformed_mask_reg"
+  batch_size: 24  # assuming 4 GPUS i.e. 4 * 24 of effective batchsize in DDP aggregation
+  img_size:
+    - 224
+    - 224
+  crop_to_brain_margin: # margin for dilating the bounding box around the tissue mask
+    - 5
+    - 10
+    - 20
+  slice_thickness: 5
+  cache: "processes"  # MONAI caching option
+  num_workers: 4      # note that this might create issues in DDP, try it out
+  target_sequence: "flair"  # synthesis target
+  guidance_sequences:       # synthesis source
+    - "t1"
+    - "t2"
+  skull_strip: 0.0                # probability to the mask to remove all of the background
+  random_slicing_direction: true  # alternate slicing between views
+model:
+  unet:
+    spatial_dims: 2
+    in_channels: 15
+    out_channels: 1
+    num_res_blocks: 1
+    num_channels: [ 128, 128, 256, 256, 512 ]
+    attention_levels: [ False, False, True, True, True ]
+    norm_num_groups: 32
+    num_head_channels: 128
+    transformer_num_layers: 1
+    use_flash_attention: true
+  loss: "l2"
+  adj_slice_dropout_p: 0.0
+  thick_target: false
+  train_noise_sched:
+    prediction_type: "v_prediction"
+    num_train_timesteps: 1000
+    schedule: "linear_beta"
+  num_inference_steps: ${model.train_noise_sched.num_train_timesteps}
+trainer:
+  val_interval: 200
+  n_epochs: 20000
+  dtype: "float16"
+  num_val_samples: 64
+  val_cache_path: "../data/cache/RS/val_slices_64"  # fixed images to be used for validation
+  show_progress_bar: true         # disable e.g. SLURM
+  checkpoint_interval: 2000       # when to run validation loop (get val loss and create examples)
+  lr: 1e-4
+  ema_beta: 0.999
+  weighting: "none"               # focus on brain
+  gradient_accumulation_steps: 1  # can be used to simulate larger batch sizes

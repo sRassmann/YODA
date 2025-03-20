@@ -1,0 +1,11 @@
+# small train and val subset for faster training
+data:
+  subset_train: 300
+  subset_val: 8
+  batch_size: 4
+  num_workers: 0
+model:
+  num_inference_steps: 1000
+trainer:
+  val_interval: 2
+  n_epochs: 100

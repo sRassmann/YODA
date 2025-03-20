@@ -1,0 +1,6 @@
+# coronal slicing direction
+data:
+  slicing_direction: coronal
+  random_slicing_direction: False
+trainer:
+  val_cache_path: "../data/cache/RS/val_slices_coronal_64"

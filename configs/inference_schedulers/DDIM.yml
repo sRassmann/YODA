@@ -1,0 +1,5 @@
+# DDIM inference scheduler config file
+model:
+  train_noise_sched:
+    type: "DDIM"
+  num_inference_steps: 100

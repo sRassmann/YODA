@@ -1,0 +1,5 @@
+# PNDM inference scheduler config file
+model:
+  train_noise_sched:
+    type: "PNDM"
+  num_inference_steps: 100

@@ -1,0 +1,5 @@
+# IXI dataset subset to only subjects that have age information (562)
+data:
+  dataset: "../data/test_datasets/ixi.json"
+  data_dir: "../data/test_datasets/ixi"
+  target_sequence: null  # no gt data!

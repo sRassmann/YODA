@@ -1,0 +1,4 @@
+# test set (600 additional RS cases) for inference
+data:
+  dataset: "../data/RS/RS_test.json"
+  data_dir: "../data/RS/conformed_test_600"

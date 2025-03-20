@@ -1,0 +1,17 @@
+# Configuration for training BraTS 23 dataset
+data:
+  dataset: "../data/BraTS/brats23_train.json"
+  data_dir: "../data/BraTS/brats23_conformed"
+  target_sequence: "flair"
+  guidance_sequences:
+    - "t1"
+    - "t2"
+  skull_strip: 0.0
+  crop_to_brain_margin:
+    - 0
+    - 0
+    - 0
+trainer:
+  num_val_samples: 64
+  val_cache_path: "../data/cache/Upenn_GBM/val_slices_brats_64"
+  weighting: "none"  # "brain"

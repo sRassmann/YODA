@@ -1,0 +1,7 @@
+# Single-step inference scheduler for regression sampling YODA
+model:
+  train_noise_sched:
+    type: "DDIM"
+    timestep_spacing: "linspace"  # predict last (t=T) not first (t=0) step
+  num_inference_steps: 1
+

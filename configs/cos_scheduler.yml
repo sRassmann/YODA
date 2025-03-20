@@ -1,0 +1,6 @@
+model:
+  train_noise_sched:
+    prediction_type: "v_prediction"
+    num_train_timesteps: 1000
+    schedule: "cosine_poly"
+    order: 0.5  # even stronger focus on early timesteps

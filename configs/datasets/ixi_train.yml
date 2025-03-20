@@ -1,0 +1,11 @@
+data:
+  dataset: "../data/test_datasets/ixi_train.json"
+  data_dir: "../data/test_datasets/ixi"
+  target_sequence: "t2"
+  guidance_sequences:
+      - "t1"
+      - "pd"
+trainer:
+  num_val_samples: 64
+  val_cache_path: "../data/cache/Upenn_GBM/val_slices_ixi_64"
+  weighting: "none"  # "brain"

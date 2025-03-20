@@ -1,0 +1,4 @@
+# RS train and validation split
+data:
+  dataset: "../data/RS/RS_train_split.json"
+  data_dir: "../data/RS/conformed_mask_reg"

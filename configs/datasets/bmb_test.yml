@@ -1,0 +1,4 @@
+# Body Mind Brain dataset (116, highres FLAIR only)
+data:
+  dataset: "../data/test_datasets/bmb_bbreg.json"
+  data_dir: "../data/test_datasets/bmb"
