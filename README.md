@@ -10,7 +10,7 @@ TBA
 So, basically, YODA is a diffusion model (DM), which, however, also allows for single-step sampling just like a regression model (RM).
 In fact, training RM is just as powerful.
 Turns out, unless for whichever reason, realistic noise is required, regression sampling is not only faster but also more accurate than DM sampling including in several tested downstream tasks
-(unless drawing and averaging $\gg 1$ samples, which of course further exacerbates the required computational force). 
+(unless drawing and averaging $N_\text{Ex} \gg 1$ samples, which of course further exacerbates the required computational force). 
 
 <p align="center">
   <img src="https://i.imgflip.com/9nwe3z.jpg" alt = "Star Wars meme" style="width:400px;"/>  
@@ -38,7 +38,7 @@ docker pull srassmann/dif
 ### Singularity
 Alternatively, the docker image can be converted to a singularity image using the following command:
 ```bash
-SING_FILE=$HOME/singularity/$USER_dagobah.sif
+SING_FILE=$HOME/singularity/${USER}_dagobah.sif
 singularity build $SING_FILE docker-daemon://rassmanns/dif:latest
 ```
 
@@ -161,6 +161,10 @@ Then, the whole image (cropped to the max size of the model) will be translated.
 ### Dataset JSON definition
 To inform YODA about the data, define a dataset JSON file we need.
 
+```bash
+JASON=../data/rs_example.json
+```
+
 <details>
     <summary> This file looks like smth like so: </summary>
     
@@ -186,15 +190,26 @@ echo $'''
       "t1": "subj_0000/T1_RMS.nii.gz",
       "t2": "subj_0000/T2_caipi.nii.gz",
       "mask": "subj_0000/mask.nii.gz"
-    },{
+    }
+  ]
+} ''' > $JASON
+
+JASONwM=../data/rs_example_noMask.json
+touch $JASONwM
+echo $'''                               
+{
+  "training": [], 
+  "validation": [
+    {
       "subject_ID": "subj_0000_noMask",
+      "_comment" : "same as before, but using as dummy as mask",
       "flair": "subj_0000/FLAIR.nii.gz",
       "t1": "subj_0000/T1_RMS.nii.gz",
       "t2": "subj_0000/T2_caipi.nii.gz",
       "mask": "subj_0000/T2_caipi.nii.gz"
-    }
+     }
   ]
-} ''' > $JASON
+} ''' > $JASONwM
 ```
 </details>
 
@@ -219,28 +234,39 @@ If you now want to also predict the other views for view aggregation, you can ad
 ```bash
 python predict/2d_yoda_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_cor -sd coronal
 python predict/2d_yoda_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_sag -sd sagittal
-python scripts/postprocessing/average_echos.py  output/$RUN/${OUTNAME}* --o output/$RUN/${outname}_rms -s "pred_flair.nii.gz"  # average the views
+python scripts/postprocessing/average_echos.py  output/$RUN/${OUTNAME}* --o output/$RUN/${OUTNAME}_rms -s "pred_flair.nii.gz"  # average the views
 ``` 
 The view-aggregation results are in `output/$RUN/${OUTNAME}_rms/subj_0000/pred_flair.nii.gz`.
 
 Note: experts use the `--force` flag to maximize YODA's capabilities.
 
+Sampling without a mask (as specified in `$JASONwM`), can be done as:
+```bash
+SHARED_ARGS=" -r $RUN -dj $JASONwM -dd $CONFORMED_DATA"  # shared arguments
+python predict/2d_yoda_predict.py $SHARED_ARGS $CONF -o $OUTNAME -om
+python predict/2d_yoda_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_cor -sd coronal -om
+python predict/2d_yoda_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_sag -sd sagittal -om
+rm -r output/$RUN/${OUTNAME}_rms
+python scripts/postprocessing/average_echos.py  output/$RUN/${OUTNAME}* --o output/$RUN/${OUTNAME}_rms -s "pred_flair.nii.gz"  # average the views
+````
+However, note this will simply center-crop the image, which might chop some important parts off.
+
 #### Diffusion sampling
-Diffusion sampling can, alternatively, be conducted as follows:
+Alternatively, diffusion sampling can be conducted as follows:
 
 ```bash
 NEX=4  # how many images to average, can also be one
-LAZY=250  # trunction, i.e. step to which to skip --> here the diffusion will skip from step 999 -> 250 sparing 1/4 of compute
-MEXds=250  # mulit-excitation sampling diversion step --> step from which on to diverge into individual sampling trajectories 
+LAZY=250  # truncation, i.e. step to which to skip --> here the diffusion will skip from step 999 -> 250 sparing 1/4 of compute
+MEXds=250  # multi-excitation sampling diversion step --> step from which on to diverge into individual sampling trajectories 
 OUTNAME=predict_RS_example_diffusion_mex$NEX
 python predict/25d_yoda_predict.py $SHARED_ARGS -o $OUTNAME -cor $RUN -sag $RUN \
   -nex $NEX -lazy $LAZY -mexds $MEXds
 ```
-Here, `-cor` and `-sag` could distinct, view-specific models. Yet, we don't usually do that as we found no benefit for the extra training effort.
-Note that we use a differen script `25d_` rather than `2d_`.
-
-Furthermore, that diffusion sampling is inherently very time-consuming.
-This we provide scripts for subject-wise parralelization [on multi-GPU systems](batch/parallel_predict_25D.sh) and on a [SLURM cluster](batch/example_array_predict_job.sh) in the `batch` folder.
+Here, `-cor` and `-sag` could be distinct, view-specific models. Yet, we don't usually do that as we found no benefit for the extra training effort.
+Note that we use a differen script `25d_` rather than `2d_`.  
+Furthermore, note that diffusion sampling is inherently very time-consuming.
+Thus, if the computational force is strong in your lab,
+you can go for subject-wise parralelization [on multi-GPU systems](batch/parallel_predict_25D.sh) and on a [SLURM cluster](batch/example_array_predict_job.sh) for which we provide the scipts in the `batch` folder,
 
 #### Dataset configs
 You can also use configs for predefinecd combinations such as data sets.
@@ -259,7 +285,7 @@ Just create simple (`tmp`) configs instead as shown above.
 
 ## Training
 To train your own YODA model preprocess the data, i.e. register and create tissue masks.
-For brain MRI translation, we recommend the same processing as described as above for the inference.
+For brain MRI translation, we recommend the same processing as described above for the inference.
 
 <p align="center">
 <img src="https://i.giphy.com/3ohuAxV0DfcLTxVh6w.webp" alt="Much to learn you still have" style="width:500px;"/>  
@@ -279,7 +305,7 @@ python train/train_yoda_ddp.py -n a_new_hope output/rs_FLAIR_from_T1T2/config.ym
 The options and their default values are defined in the [`configs/defaults.yml`](configs/defaults.yml) file.
 You can either add configs or cmd-line flags to the train script. 
 Child nodes (`c`) of parents nodes (`p`) can be specifiec in the dot notation (`--p.c <value>`), so e.g. the batch size can be set using `--data.batch_size <value>`. 
-Note that, again, the configs are overwritten from right to left, and that cmd flags overwrite the respective configs, e.g. assume we want to train the BraTS model on the RS with an effective batch size of 96 (12*8).
+Note that, again, the configs are overwritten from left to right, and cmd flags overwrite the respective configs, e.g. assume we want to train the BraTS model on the RS with an effective batch size of 96 (12*8):
 ```bash
 python train/train_yoda_ddp.py -n empire_strikes_back \
   output/brats_FLAIR_from_T1T2/config.yml configs/datasets/rs_train.yml \
@@ -298,7 +324,7 @@ torchrun --nproc_per_node $NUM_GPUS train/train_yoda_ddp.py -n return_of_jedi \
   --data.batch_size 12 --data.num_workers 8
 ```
 
-We also provide a template for SLURM jobs ([`batch/example_train_job_slurm.sh`](batch/example_train_job_slurm.sh) ).
+We also provide a template for SLURM jobs ([`batch/example_train_job_slurm.sh`](batch/example_train_job_slurm.sh)).
 
 <p align="center">
     <img src="https://i.giphy.com/26tn8zNgVmit475RK.webp" alt = "No more training do you require" style="width:500px;"/>

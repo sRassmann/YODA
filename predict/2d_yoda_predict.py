@@ -46,7 +46,13 @@ def main(
     size = (
         (-1, *config.data.img_size)
         if (n_slices_per_sample is not None)
-        else (max(config.data.img_size) - config.data.slice_thickness + 1,) * 3
+        else (
+            # crop to max size of the model
+            (max(config.data.img_size) - config.data.slice_thickness + 1,) * 3
+            # if no crop_to_brain_margin is specified
+            if config.data.crop_to_brain_margin is None
+            else None  # else just center crop to img_size
+        )
     )
     skull_strip = config.data.get("skull_strip", False)
     if skull_strip != 1 and skull_strip != 0:
@@ -65,6 +71,7 @@ def main(
         normalize_to=(-1, 1),
         skull_strip=skull_strip,
         slicing_direction="axial",  # always axial, adapt matrix inside
+        crop_to_brain_margin=config.data.crop_to_brain_margin,
     )
     slicing_direction = config.data.get("slicing_direction", "axial")
 
@@ -216,6 +223,12 @@ if __name__ == "__main__":
         type=str,
         default=None,
     )
+    parser.add_argument(
+        "--omit_mask",
+        "-om",
+        action="store_true",
+        help="Ignore/don't provide mask from defining the synthesis ROI.",
+    )
 
     # Optional positional argument for start and end indices
     parser.add_argument(
@@ -294,6 +307,8 @@ if __name__ == "__main__":
         config.data.dataset = args.dataset_json
     if args.data_dir is not None:
         config.data.data_dir = args.data_dir
+    if args.omit_mask:
+        config.data.crop_to_brain_margin = None
 
     if args.force:
         print("YODA predicting your images is")

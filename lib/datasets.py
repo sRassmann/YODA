@@ -33,7 +33,7 @@ def cacheable_transforms(
     t = [
         # remove unnecessary keys and load the remaining images
         transforms.SelectItemsd(
-            keys=relevant_sequences + ["subject_ID", "flair_qual"],
+            keys=relevant_sequences + ["subject_ID"],
             allow_missing_keys=True,
         ),
         transforms.LoadImaged(
@@ -285,6 +285,7 @@ def get_3d_sample_function(
             mask_key="brain_mask",
             prob=skull_strip_p,
             masked_intensity=pad_val,
+            allow_missing_keys=True,
         ),
     ]
     if size is not None:
@@ -299,6 +300,7 @@ def get_3d_sample_function(
                 keys=["mask"],
                 spatial_size=size,
                 value=0,
+                allow_missing_keys=True,
             ),
         ]
     return sample
