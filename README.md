@@ -12,36 +12,21 @@ In fact, training RM is just as powerful.
 Turns out, unless for whichever reason, realistic noise is required, regression sampling is not only faster but also more accurate than DM sampling including in several tested downstream tasks
 (unless drawing and averaging $\gg 1$ samples, which of course further exacerbates the required computational force). 
 
-
-<img src="https://i.imgflip.com/9nwe3z.jpg" alt = "Star Wars meme" style="width:400px;"/>  
+<p align="center">
+  <img src="https://i.imgflip.com/9nwe3z.jpg" alt = "Star Wars meme" style="width:400px;"/>  
+</p>
 
 ## What to Expect
-Some example results demonstrating YODA's performance.
+Some example results demonstrating YODA's performance.  
+TBA
 
-### RS (T1w, T2w $\rightarrow$ FLAIR)
-
-<img src="resources/rs_axial.gif" alt="gif" style="width:500px;"/>
-
-<details>
-    <summary> Expand to see all views</summary>
-<img src="resources/rs_cor.gif"  alt="gif" style="width:500px;"/>
-<img src="resources/rs_sag.gif"  alt="gif" style="width:500px;"/>
-    
-<\details>
-
-### RS (T1w, T2w $\rightarrow$ FLAIR) with diffusion sampling
-<img src="resources/rs_diffusion.gif"  alt="gif" style="width:500px;"/>
-
-### RS (T1w, T2w $\rightarrow$ FLAIR) with MEX sampling
-<img src="resources/rs_MEX.gif"  alt="gif" style="width:500px;"/>
 
 # Code Instructions 
 Here are some instructions to run our code and replicate some of our results:
 
 ## Code dependencies
 
-This code is based on PyTorch and makes heavy use of the force of `MONAI` and the (by now deprecated) `MONAI generative` frameworks.
-
+This code is based on PyTorch and makes heavy use of the force of `MONAI` and the (by now deprecated) `MONAI generative` frameworks.  
 The exact dependencies can be found in the `requirements.txt` file, yet, we recommend using docker/singularity:
 
 ### Docker 🐋
@@ -140,7 +125,9 @@ done
 ```
 This might take a couple of minutes / subject.
 
+<p align="center">
 <img src="https://media1.tenor.com/m/5AwAZOY-F94AAAAd/star-wars-yoda.gif" alt = "Patience to learn you must have" style="width:500px;"/>  
+</p>
 
 Note that here we register to the target modality (FLAIR) to assert that the images are aligned. 
 If the target modality is not available (e.g. IXI or HCP), we recommend registering to the T2w images (resampling to ~1mm iso.).
@@ -173,8 +160,10 @@ Then, the whole image (cropped to the max size of the model) will be translated.
 
 ### Dataset JSON definition
 To inform YODA about the data, define a dataset JSON file we need.
-This file looks like smth like so:
 
+<details>
+    <summary> This file looks like smth like so: </summary>
+    
 ```bash
 JASON=../data/rs_example.json
 touch $JASON
@@ -207,6 +196,7 @@ echo $'''
   ]
 } ''' > $JASON
 ```
+</details>
 
 ### Prediction
 
@@ -271,7 +261,9 @@ Just create simple (`tmp`) configs instead as shown above.
 To train your own YODA model preprocess the data, i.e. register and create tissue masks.
 For brain MRI translation, we recommend the same processing as described as above for the inference.
 
+<p align="center">
 <img src="https://i.giphy.com/3ohuAxV0DfcLTxVh6w.webp" alt="Much to learn you still have" style="width:500px;"/>  
+</p>
 
 ### Dataset JSON
 You will need to create a JSON file specifying your data, similar to the inference cases explained above.
@@ -308,7 +300,9 @@ torchrun --nproc_per_node $NUM_GPUS train/train_yoda_ddp.py -n return_of_jedi \
 
 We also provide a template for SLURM jobs ([`batch/example_train_job_slurm.sh`](batch/example_train_job_slurm.sh) ).
 
-<img src="https://i.giphy.com/26tn8zNgVmit475RK.webp" alt = "No more training do you require" style="width:500px;"/>
+<p align="center">
+    <img src="https://i.giphy.com/26tn8zNgVmit475RK.webp" alt = "No more training do you require" style="width:500px;"/>
+</p>
 
 Congrats, you have now trained your very own first YODA model! 
 "I feel the force is strong with you."
