@@ -8,7 +8,7 @@ Abstract:
 TBA
 
 So, basically, YODA is a diffusion model (DM), which, however, also allows for single-step sampling just like a regression model (RM).
-In fact, training RM is just as powerful.
+In fact, training RMs is just as powerful.
 Turns out, unless for whichever reason, realistic noise is required, regression sampling is not only faster but also more accurate than DM sampling including in several tested downstream tasks
 (unless drawing and averaging $N_\text{Ex} \gg 1$ samples, which of course further exacerbates the required computational force). 
 
@@ -17,11 +17,56 @@ Turns out, unless for whichever reason, realistic noise is required, regression 
 </p>
 
 ## What to Expect
-Some example results demonstrating YODA's performance.  
-TBA
+Here are some example results demonstrating YODA's performance.
+[Click here](#Code-instructions) to skip to the code instructions.
 
+### Regression sampling (noise-free prediction)
+Results from single-step (regression-like) sampling. This can be done in $<1$ min on a single consumer-grade GPU and achieves maximum accuracy.
 
-# Code Instructions 
+<p align="center">
+  <img src="resources/rs_axial.gif" alt = "RS axial" style="width:600px;"/>  
+</p>
+
+<details>
+  <summary> click to see additional views </summary>
+  <p align="center">
+  <img src="resources/rs_cor.gif" alt = "RS coronal" style="width:400px;"/>  
+  <img src="resources/rs_sag.gif" alt = "RS sagittal" style="width:400px;"/>
+    </p>
+</details>
+
+### Diffusion sampling (noise imitation)
+To generate realistic images, i.e. simulate acquisition noise, we can also use diffusion sampling.
+However, this takes $~250 \times$ more function evaluations (NFE) and, thus, way longer.  
+Note that given the probabilistic nature of the sampling, the results are not deterministic, so that we can draw multiple samples from the same model and inputs.
+<p align="center">
+  <img src="resources/rs_diffusion.gif" alt = "DS axial" style="width:600px;"/>
+</p>
+
+### MEX sampling (simulated signal averaging)
+We can use this to average the samples to approximate noise-free images similar to physical multi-excitation (MEX) signal averages:
+
+<p align="center">
+  <img src="resources/rs_MEX.gif" alt = "DS axial" style="width:600px;"/>
+</p>
+So in this example, after only 31 samples drawn from the model (>8h on a V100), 
+you would get the same image quality (in terms of SSIM) as with single-step regression sampling.
+
+### Comparison to other methods
+
+<p align="center">
+  <img src="resources/comparison_ax.gif" alt = "Comparison to other methods" style="width:600px;"/>
+</p>
+
+<details>
+  <summary> click to see additional views </summary>
+  <p align="center">
+  <img src="resources/comparison_cor.gif" alt = "Comparison to other methods" style="width:600px;"/>  
+  <img src="resources/comparison_sag.gif" alt = "Comparison to other methods" style="width:600px;"/>
+  </p>
+</details>
+
+# Code Instructions
 Here are some instructions to run our code and replicate some of our results:
 
 ## Code dependencies
@@ -39,7 +84,7 @@ docker pull srassmann/dif
 Alternatively, the docker image can be converted to a singularity image using the following command:
 ```bash
 SING_FILE=$HOME/singularity/${USER}_dagobah.sif
-singularity build $SING_FILE docker-daemon://rassmanns/dif:latest
+singularity build $SING_FILE docker://srassmann/dif:latest
 ```
 
 We will for now assume that `python` is from the correct environment, e.g. by using `singularity exec $SING_FILE python` or `docker exec -v <binds> -it $USER/dif python`.
@@ -55,9 +100,8 @@ We used the following tools for this purpose:
 ### FreeSurfer 
 The registration of source and target modalities is performed using _FreeSurfer_ (v7.4). 
 This can be [installed natively](https://surfer.nmr.mgh.harvard.edu/fswiki/DownloadAndInstall) or via 
-[docker/singularity](https://hub.docker.com/r/freesurfer/freesurfer) (Note, that _FreeSurfer_ requires a license).
-
-Yet, other tools can likely also be used to perform the registration.
+[docker/singularity](https://hub.docker.com/r/freesurfer/freesurfer) (Note, that _FreeSurfer_ requires a license).  
+However, other tools can likely also be used to perform the registration.
 
 ### Full-brain segmentation
 The full-brain segmentation is performed using [_FastSurfer_](https://github.com/Deep-MI/FastSurfer) (v2.2), 
@@ -73,15 +117,13 @@ which is rather bothersome for diffusion sampling (again, not really a need for 
 
 ### Weights 
 
-Model weights will be released on Zenodo (link tba).
-
+Model weights will be released on Zenodo (link tba).  
 We expect the model weights to be placed in `output/<run_name>/ckpt` where `<run_name>` is the name of the run and model's base config to be in `output/<run_name>/config.yml`.
 
 ### Data organization
 
 For simplicity, we assume the data to be stored in `../data/<dataset_name>` where `<dataset_name>` is the name of the dataset.
-Within is directory, we expect one folder per subject, each containing the modalities as `.nii.gz` files.
-
+Within is directory, we expect one folder per subject, each containing the modalities as `.nii.gz` files.  
 E.g. to reproduce FLAIR synthesis in the Rhineland study using the [released example images](https://zenodo.org/records/11186582) (as shown above), the data should be organized as follows:
 
 ```bash
@@ -103,7 +145,7 @@ tree $RAW_DATA
 #### Registration and resampling
 <details>
   <summary> see here for details </summary>
-In the case (like here) that the data is not already registered and resampled, do that with your tool of choice, e.g. (assuming sourced _FreeSurfer_):
+In the case (like here) that the data is not already registered and resampled, do that with your tool of choice, e.g. (assuming FreeSurfer to be sourced):
 
 ```bash
 REGISTERED_DATA=../data/rs_example_registered
@@ -128,11 +170,11 @@ This might take a couple of minutes / subject.
 <p align="center">
 <img src="https://media1.tenor.com/m/5AwAZOY-F94AAAAd/star-wars-yoda.gif" alt = "Patience to learn you must have" style="width:500px;"/>  
 </p>
+</details>
 
-Note that here we register to the target modality (FLAIR) to assert that the images are aligned. 
+Note that here we register to the target modality (FLAIR). 
 If the target modality is not available (e.g. IXI or HCP), we recommend registering to the T2w images (resampling to ~1mm iso.).
 
-</details>
 
 ### Intensity normalization
 
@@ -163,6 +205,7 @@ To inform YODA about the data, define a dataset JSON file we need.
 
 ```bash
 JASON=../data/rs_example.json
+JASONwM=../data/rs_example_noMask.json
 ```
 
 <details>
@@ -224,7 +267,7 @@ To predict the FLAIR image of `subj_0000` using the model weights and regression
 ```bash
 RUN=rs_FLAIR_from_T1T2  # name of the run, the main configs are taken from output/<run_name>/config.yml
 OUTNAME=predict_RS_example
-CONF=configs/inference_schedulers/Regression.yml  # config we just created
+CONF=configs/inference_schedulers/Regression.yml  # define regression sampling
 SHARED_ARGS=" -r $RUN -dj $JASON -dd $CONFORMED_DATA"  # shared arguments
 python predict/2d_yoda_predict.py $SHARED_ARGS $CONF -o $OUTNAME
 ```
