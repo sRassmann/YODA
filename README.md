@@ -9,7 +9,7 @@ TBA
 
 So, basically, YODA is a diffusion model (DM), which, however, also allows for single-step sampling just like a regression model (RM).
 In fact, training RMs is just as powerful.
-Turns out, unless for whichever reason, realistic noise is required, regression sampling is not only faster but also more accurate than DM sampling including in several tested downstream tasks
+It turns out that, unless for whichever reason, realistic noise is required, regression sampling is not only faster but also more accurate than DM sampling including in several tested downstream tasks
 (unless drawing and averaging $N_\text{Ex} \gg 1$ samples, which of course further exacerbates the required computational force). 
 
 <p align="center">
@@ -30,8 +30,8 @@ Results from single-step (regression-like) sampling. This can be done in $<1$ mi
 <details>
   <summary> click to see additional views </summary>
   <p align="center">
-  <img src="resources/rs_cor.gif" alt = "RS coronal" style="width:400px;"/>  
-  <img src="resources/rs_sag.gif" alt = "RS sagittal" style="width:400px;"/>
+  <img src="resources/rs_cor.gif" alt = "RS coronal" style="width:600px;"/>  
+  <img src="resources/rs_sag.gif" alt = "RS sagittal" style="width:600px;"/>
     </p>
 </details>
 
@@ -335,7 +335,7 @@ For brain MRI translation, we recommend the same processing as described above f
 </p>
 
 ### Dataset JSON
-You will need to create a JSON file specifying your data, similar to the inference cases explained above.
+You will need to create a JSON file specifying your data, similar to the inference cases [explained previously](#Dataset-JSON-definition).
 Some examples (for IXI, BraTS, and the Gold Altas) for creating these JSONs can be found at [`nb/config_creation`](nb/config_creation).
 
 ### Start training

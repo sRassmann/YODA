@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y git  && apt-get install -y tree
 
 RUN git clone https://github.com/Project-MONAI/GenerativeModels.git
 WORKDIR /workspace/GenerativeModels
+# RUN git checkout 3da2673ded174fff0268282a14d42802d5c1e4c2
 RUN python setup.py install
 
 # Install additional dependencies
@@ -31,6 +32,3 @@ EXPOSE 8080
 
 # Specify the command to run when the container starts
 CMD ["bash"]
-
-
-
