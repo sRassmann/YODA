@@ -1,27 +1,33 @@
 # YODA (You Only Denoise once - or Average)
 
-"Hello there", welcome to the implementation of YODA described in the paper ["Regression is all you need for medical image denoising"]()
+"Hello there!", welcome to the implementation of YODA (You Only Denoise once - or Average) 
+as described in the paper ["Regression is all you need for medical image translation"]().
 
 
 Abstract:
 
 TBA
 
-So, basically, YODA is a diffusion model (DM), which, however, also allows for single-step sampling just like a regression model (RM).
-In fact, training RMs is just as powerful.
-It turns out that, unless for whichever reason, realistic noise is required, regression sampling is not only faster but also more accurate than DM sampling including in several tested downstream tasks
-(unless drawing and averaging $N_\text{Ex} \gg 1$ samples, which of course further exacerbates the required computational force). 
+So our key findings are:
+ 1. Using 2.5D diffusion, we can achieve [highly accurate 3D image synthesis](#diffusion-sampling-noise-imitation)
+avoiding artifacts from [2D slice-wise synthesis](#comparison-to-other-methods). 
+ 2. Using regression sampling, we can achieve [highly accurate noise-free image synthesis](#regression-sampling-noise-free-prediction)
+avoiding the need for expensive diffusion sampling and average multiple images to achieve noise suppression.
+ 3. By averaging several diffusion images to approximate the expected value of the random diffusion sampling process in ExpA
+sampling we show that [diffusion and regression sampling are equivalent](#expa-sampling-simulated-signal-averages)
+i.e. the additional generation of fine-grained high-frequency details is non-systematic and mainly imitates acquisition noise
+
 
 <p align="center">
   <img src="https://i.imgflip.com/9nwe3z.jpg" alt = "Star Wars meme" style="width:400px;"/>  
 </p>
 
 ## What to Expect
-Here are some example results demonstrating YODA's performance.
-[Click here](#Code-instructions) to skip to the code instructions.
+Here are some example results demonstrating YODA's performance on [the public test case of the Rhineland study (RS)](https://zenodo.org/records/11186582) for translating T1w and T2w to FLAIR images.
+[Click here](#Code-instructions) to skip to the code instructions and reproduce our results.
 
 ### Regression sampling (noise-free prediction)
-Results from single-step (regression-like) sampling. This can be done in $<1$ min on a single consumer-grade GPU and achieves maximum accuracy.
+Synthetic FLAIR images from single-step (regression-like) sampling. This can be done in $<1$ min on a single consumer-grade GPU and achieves maximum accuracy.
 
 <p align="center">
   <img src="resources/rs_axial.gif" alt = "RS axial" style="width:600px;"/>  
@@ -43,8 +49,9 @@ Note that given the probabilistic nature of the sampling, the results are not de
   <img src="resources/rs_diffusion.gif" alt = "DS axial" style="width:600px;"/>
 </p>
 
-### MEX sampling (simulated signal averaging)
-We can use this to average the samples to approximate noise-free images similar to physical multi-excitation (MEX) signal averages:
+### ExpA sampling (simulated signal averages)
+We can sample and average multiple images to approximate noise-free images (i.e. the expected value of the corresponding random variable)
+similar to physical multi-excitation (MEX) signal averages:
 
 <p align="center">
   <img src="resources/rs_MEX.gif" alt = "DS axial" style="width:600px;"/>
@@ -52,7 +59,7 @@ We can use this to average the samples to approximate noise-free images similar 
 So in this example, after only 31 samples drawn from the model (>8h on a V100), 
 you would get the same image quality (in terms of SSIM) as with single-step regression sampling.
 
-### Comparison to other methods
+### Comparison to the state-of-the-art
 
 <p align="center">
   <img src="resources/comparison_ax.gif" alt = "Comparison to other methods" style="width:600px;"/>
@@ -295,24 +302,24 @@ python scripts/postprocessing/average_echos.py  output/$RUN/${OUTNAME}* --o outp
 However, note this will simply center-crop the image, which might chop some important parts off.
 
 #### Diffusion sampling
-Alternatively, diffusion sampling can be conducted as follows:
+Alternatively, diffusion sampling - potentially with $N_{Ex}>1$ and, thus, averaging multiple images to approximate YODA's expected value - can be conducted as follows:
 
 ```bash
 NEX=4  # how many images to average, can also be one
 LAZY=250  # truncation, i.e. step to which to skip --> here the diffusion will skip from step 999 -> 250 sparing 1/4 of compute
-MEXds=250  # multi-excitation sampling diversion step --> step from which on to diverge into individual sampling trajectories 
-OUTNAME=predict_RS_example_diffusion_mex$NEX
+MEXds=250  # expectation approximation diversion step --> step from which on to diverge into individual sampling trajectories 
+OUTNAME=predict_RS_example_diffusion_expa$NEX
 python predict/25d_yoda_predict.py $SHARED_ARGS -o $OUTNAME -cor $RUN -sag $RUN \
   -nex $NEX -lazy $LAZY -mexds $MEXds
 ```
 Here, `-cor` and `-sag` could be distinct, view-specific models. Yet, we don't usually do that as we found no benefit for the extra training effort.
-Note that we use a differen script `25d_` rather than `2d_`.  
+Note that we use a different script `25d_` rather than `2d_`.  
 Furthermore, note that diffusion sampling is inherently very time-consuming.
 Thus, if the computational force is strong in your lab,
-you can go for subject-wise parralelization [on multi-GPU systems](batch/parallel_predict_25D.sh) and on a [SLURM cluster](batch/example_array_predict_job.sh) for which we provide the scipts in the `batch` folder,
+you can go for subject-wise parallelization [on multi-GPU systems](batch/parallel_predict_25D.sh) and on a [SLURM cluster](batch/example_array_predict_job.sh) for which we provide the scipts in the `batch` folder,
 
 #### Dataset configs
-You can also use configs for predefinecd combinations such as data sets.
+You can also use configs for pre-defined combinations such as data sets.
 E.g. to the test the RS YODA on other datasets, you'd had to always set the `-ds` and `-dj` flags.
 For e.g. the IXI (which does not have a FLAIR) sequence you'd also to need specify the src and trg sequences.
 
@@ -341,14 +348,17 @@ Some examples (for IXI, BraTS, and the Gold Altas) for creating these JSONs can 
 ### Start training
 The models can be trained using
 ```bash
-python train/train_yoda_ddp.py -n a_new_hope output/rs_FLAIR_from_T1T2/config.yml
+python train/train_yoda_ddp.py -n new_hope output/rs_FLAIR_from_T1T2/config.yml
 ```
 
 ### Training options
-The options and their default values are defined in the [`configs/defaults.yml`](configs/defaults.yml) file.
-You can either add configs or cmd-line flags to the train script. 
-Child nodes (`c`) of parents nodes (`p`) can be specifiec in the dot notation (`--p.c <value>`), so e.g. the batch size can be set using `--data.batch_size <value>`. 
+You can either add configs or cmd-line flags to the train script.  
+Child nodes (`c`) of parents nodes (`p`) can be specified in the dot notation (`--p.c <value>`), so e.g. the batch size can be set using `--data.batch_size <value>`. 
 Note that, again, the configs are overwritten from left to right, and cmd flags overwrite the respective configs, e.g. assume we want to train the BraTS model on the RS with an effective batch size of 96 (12*8):
+
+The options and their default values are defined in the [`configs/defaults.yml`](configs/defaults.yml) file.
+See the comments to for an explanation of the options.  
+
 ```bash
 python train/train_yoda_ddp.py -n empire_strikes_back \
   output/brats_FLAIR_from_T1T2/config.yml configs/datasets/rs_train.yml \

@@ -1,3 +1,4 @@
+# Train on IXI dataset for T1 + PD --> T2 synthesis
 data:
   dataset: "../data/test_datasets/ixi_train.json"
   data_dir: "../data/test_datasets/ixi"
@@ -7,5 +8,5 @@ data:
       - "pd"
 trainer:
   num_val_samples: 64
-  val_cache_path: "../data/cache/Upenn_GBM/val_slices_ixi_64"
+  val_cache_path: "../data/cache/val_slices_ixi_64"
   weighting: "none"  # "brain"
