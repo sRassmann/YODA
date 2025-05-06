@@ -1,20 +1,15 @@
 # YODA (You Only Denoise once - or Average)
 
-"Hello there!", welcome to the implementation of YODA (You Only Denoise once - or Average) 
-as described in the paper ["Regression is all you need for medical image translation"]().
+"Hello there!". Welcome to the implementation of YODA (You Only Denoise once - or Average) 
+as described in the paper ["Regression is all you need for medical image translation"](https://arxiv.org/pdf/2505.02048) (see [here for a visual abstract](https://arxiv.org/src/2505.02048v1/anc/Media_file_YODA_Regression_is_all_you_need.mp4))
 
-
-Abstract:
-
-TBA
-
-So our key findings are:
+Our key findings are:
  1. Using 2.5D diffusion, we can achieve [highly accurate 3D image synthesis](#diffusion-sampling-noise-imitation)
 avoiding artifacts from [2D slice-wise synthesis](#comparison-to-other-methods). 
  2. Using regression sampling, we can achieve [highly accurate noise-free image synthesis](#regression-sampling-noise-free-prediction)
-avoiding the need for expensive diffusion sampling and average multiple images to achieve noise suppression.
+avoiding the need for expensive diffusion sampling and averaging multiple images to achieve noise suppression.
  3. By averaging several diffusion images to approximate the expected value of the random diffusion sampling process in ExpA
-sampling we show that [diffusion and regression sampling are equivalent](#expa-sampling-simulated-signal-averages)
+sampling, we show that [diffusion and regression sampling are equivalent](#expa-sampling-simulated-signal-averages)
 i.e. the additional generation of fine-grained high-frequency details is non-systematic and mainly imitates acquisition noise
 
 
@@ -44,7 +39,7 @@ Synthetic FLAIR images from single-step (regression-like) sampling. This can be 
 ### Diffusion sampling (noise imitation)
 To generate realistic images, i.e. simulate acquisition noise, we can also use diffusion sampling.
 However, this takes $~250 \times$ more function evaluations (NFE) and, thus, way longer.  
-Note that given the probabilistic nature of the sampling, the results are not deterministic, so that we can draw multiple samples from the same model and inputs.
+Note that given the probabilistic nature of the sampling, the results are not deterministic, so we can draw multiple samples from the same model and inputs.
 <p align="center">
   <img src="resources/rs_diffusion.gif" alt = "DS axial" style="width:600px;"/>
 </p>
@@ -101,7 +96,7 @@ alias python="singularity exec --nv -B <potential binds of symlinked data etc> $
 ```
 
 ## Preprocessing
-Our preprocessing pipeline consists of registration & resampling followed by segmentation. 
+Our preprocessing pipeline consists of registration & resampling, followed by segmentation. 
 We used the following tools for this purpose:
 
 ### FreeSurfer 
@@ -116,8 +111,8 @@ which is also available as [docker/singularity image](https://hub.docker.com/r/d
 
 Yet, except for obtaining precise label-wise brain metrics like the noise-level of the WM, 
 segmentation (including _FreeSurfer_'s `mri_synthstrip`) can be used just as well. 
-The mask is only used to constraint the synthesis ROI and, optionally, for skull-stripping / background masking.
-If you want, you can also omit it all together, however, than precious computation time is wasted on translating the background, 
+The mask is only used to constrain the synthesis ROI and, optionally, for skull-stripping / background masking.
+If you want, you can also omit it altogether, however, then precious computation time is wasted on translating the background, 
 which is rather bothersome for diffusion sampling (again, not really a need for that ...).
 
 ## Inference
@@ -125,7 +120,7 @@ which is rather bothersome for diffusion sampling (again, not really a need for 
 ### Weights 
 
 Model weights will be released on Zenodo (link tba).  
-We expect the model weights to be placed in `output/<run_name>/ckpt` where `<run_name>` is the name of the run and model's base config to be in `output/<run_name>/config.yml`.
+We expect the model weights to be placed in `output/<run_name>/ckpt`, where `<run_name>` is the name of the run and the model's base config to be in `output/<run_name>/config.yml`.
 
 ### Data organization
 
@@ -208,7 +203,7 @@ In the lazy case, you can, however, omit the mask and simply symlink e.g. one of
 Then, the whole image (cropped to the max size of the model) will be translated.
 
 ### Dataset JSON definition
-To inform YODA about the data, define a dataset JSON file we need.
+To inform YODA about the data, define a dataset JSON file that we need.
 
 ```bash
 JASON=../data/rs_example.json
@@ -353,11 +348,11 @@ python train/train_yoda_ddp.py -n new_hope output/rs_FLAIR_from_T1T2/config.yml
 
 ### Training options
 You can either add configs or cmd-line flags to the train script.  
-Child nodes (`c`) of parents nodes (`p`) can be specified in the dot notation (`--p.c <value>`), so e.g. the batch size can be set using `--data.batch_size <value>`. 
+Child nodes (`c`) of parent nodes (`p`) can be specified in the dot notation (`--p.c <value>`), so e.g. the batch size can be set using `--data.batch_size <value>`. 
 Note that, again, the configs are overwritten from left to right, and cmd flags overwrite the respective configs, e.g. assume we want to train the BraTS model on the RS with an effective batch size of 96 (12*8):
 
 The options and their default values are defined in the [`configs/defaults.yml`](configs/defaults.yml) file.
-See the comments to for an explanation of the options.  
+See the comments for an explanation of the options.  
 
 ```bash
 python train/train_yoda_ddp.py -n empire_strikes_back \
@@ -367,7 +362,7 @@ python train/train_yoda_ddp.py -n empire_strikes_back \
 
 ### Distributed Data Parallel
 YODA can be easily trained on multiple GPUs (on a single node) with DDP
-(again assuming that torchrun refers to the correct env, e.g. by 
+(again assuming that torchrun refers to the correct env, e.g., by 
 `alias torchrun="singularity exec --nv -B <binds> $SING_FILE torchrun"`):
 
 ```bash
