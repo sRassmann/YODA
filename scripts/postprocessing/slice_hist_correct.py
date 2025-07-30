@@ -43,12 +43,12 @@ class GradientLoss(nn.Module):
 
 
 class LearnableGammaCorrection(nn.Module):
-    def __init__(self, n_slices):
+    def __init__(self, n_slices, learn_a=True, learn_gamma=True, learn_c=True):
         super(LearnableGammaCorrection, self).__init__()
-        self.A = nn.Parameter(torch.ones(n_slices, 1, 1))
-        self.gamma = nn.Parameter(torch.ones(n_slices, 1, 1))
-        self.c_out = nn.Parameter(torch.zeros(n_slices, 1, 1))
-        self.c_in = nn.Parameter(torch.zeros(n_slices, 1, 1))
+        self.A = nn.Parameter(torch.ones(n_slices, 1, 1), requires_grad=learn_a)
+        self.gamma = nn.Parameter(torch.ones(n_slices, 1, 1), requires_grad=learn_gamma)
+        self.c_out = nn.Parameter(torch.zeros(n_slices, 1, 1), requires_grad=learn_c)
+        self.c_in = nn.Parameter(torch.zeros(n_slices, 1, 1))  # unused
 
     def forward(self, x):
         return self.A * torch.pow(x, self.gamma) + self.c_out
@@ -57,7 +57,16 @@ class LearnableGammaCorrection(nn.Module):
         return torch.mean((self.A - 1) ** 2 + (self.gamma - 1) ** 2 + self.c_out**2)
 
 
-def slice_correct(x, max_steps=10000, reg_weight=0.02, lr=10, verbose=False):
+def slice_correct(
+    x,
+    max_steps=10000,
+    reg_weight=0.02,
+    lr=10,
+    verbose=False,
+    learn_a=True,
+    learn_gamma=True,
+    learn_c=True,
+):
     mask_org = x > 0
     mask = erode(mask_org, erode_size=5)
 
@@ -68,9 +77,11 @@ def slice_correct(x, max_steps=10000, reg_weight=0.02, lr=10, verbose=False):
     x = x[slices_mask]
     mask = mask[slices_mask]
 
-    cor = LearnableGammaCorrection(x.shape[0]).to(x.device)
+    cor = LearnableGammaCorrection(
+        x.shape[0], learn_a=learn_a, learn_gamma=learn_gamma, learn_c=learn_c
+    ).to(x.device)
     loss = GradientLoss(mask)
-    optimizer = torch.optim.SGD(cor.parameters(), lr=lr)
+    optimizer = torch.optim.SGD([p for p in cor.parameters() if p.requires_grad], lr=lr)
 
     last_loss = 42
     converge_counter = 0
@@ -119,7 +130,15 @@ def slice_correct(x, max_steps=10000, reg_weight=0.02, lr=10, verbose=False):
     return (x_org * mask_org) * 255
 
 
-def main(input, output=None, target_sequence="pred_flair", view="ax"):
+def main(
+    input,
+    output=None,
+    target_sequence="pred_flair",
+    view="ax",
+    fix_a=True,
+    fix_gamma=True,
+    fix_c=True,
+):
     device = "cuda"
     output = input + "_cor" if output is None else output
 
@@ -136,7 +155,14 @@ def main(input, output=None, target_sequence="pred_flair", view="ax"):
             x = np.moveaxis(x, 2, 0)
 
         x = torch.tensor(x).to(device)
-        x_cor = slice_correct(x, max_steps=10000, verbose=False)
+        x_cor = slice_correct(
+            x,
+            max_steps=10000,
+            verbose=False,
+            learn_a=not fix_a,
+            learn_gamma=not fix_gamma,
+            learn_c=not fix_c,
+        )
         x_cor = x_cor.cpu().detach().numpy()
         x_cor = np.clip(x_cor, 0, 255).astype(np.uint8)
 
@@ -181,8 +207,41 @@ if __name__ == "__main__":
         "-v",
         "--view",
         choices=["ax", "sag", "cor"],
-        help="View of the MRI",
+        help="view of image (main slicing plain)",
         default="ax",
     )
+
+    # contraining the optimized parameters:
+    # -fA -fC --> only optimize gamma --> default Gamma correction
+    # -fG --> only optimize A,C --> linear correction
+    # non of this : generized Gamma correction
+    parser.add_argument(
+        "-fA",
+        "--fix_A",
+        action="store_true",
+        help="Fix A (A not learnable)",
+    )
+    parser.add_argument(
+        "-fG",
+        "--fix_gamma",
+        action="store_true",
+        help="Fix gamma (gamma not learnable)",
+    )
+    parser.add_argument(
+        "-fC", "--fix_C", action="store_true", help="Fix C (C not learnable)"
+    )
     args = parser.parse_args()
-    main(args.input, args.output, args.target, args.view)
+    if all([args.fix_A, args.fix_gamma, args.fix_C]):
+        raise RuntimeError("Cannot fix all params (a, gamma, c)")
+
+    main(
+        args.input,
+        args.output,
+        args.target,
+        args.view,
+        args.fix_A,
+        args.fix_gamma,
+        args.fix_C,
+    )
+
+# TODO remove comands and add to YODA repo
