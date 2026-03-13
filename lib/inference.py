@@ -16,6 +16,7 @@ from generative.metrics import SSIMMetric
 
 
 from lib.custom_nets.concat_inferer import ThickSliceInferer
+from lib.custom_nets.regression import UNet
 from lib.utils.etc import (
     remove_module_in_state_dict,
     get_ema_checkpoint,
@@ -248,18 +249,6 @@ class Sr3InferenceModel(torch.nn.Module):
                     model_outputs.append(model_output)
                 pred_volume = torch.cat(model_outputs, dim=0)
                 image, _ = self.scheduler.step(pred_volume.float(), t, image.float())
-
-                # if t % 20 == 19 or t == 0:
-                #     for i in range(2):
-                #         img = np.array(_[i].squeeze().cpu())
-                #         img -= np.percentile(img, 1)
-                #         img /= np.percentile(img, 99)
-                #         img = np.clip(img, 0, 1)
-                #         img = (img * 255).astype(np.uint8)
-                #         cv2.imwrite(
-                #             f"/home/rassmanns/diffusion/flairsyn/output/sr3/deregister/inference_progress/{t}_{i}.png",
-                #             img,
-                #         )
 
             image = image.transpose(0, 1)
 
@@ -682,3 +671,92 @@ class Sr3MultiViewInferenceModel(torch.nn.Module):
             self.psnr.append(psnr)
             self.ssim.append(ssim)
         return image
+
+
+class RegressionInferer(torch.nn.Module):
+    def __init__(
+        self,
+        config,
+        model=None,
+        ckpt=None,
+        device="cuda",
+        dtype=torch.float16,
+    ):
+        super().__init__()
+        self.config = config
+        self.guidance_sequences = config.data.guidance_sequences
+        self.out_channels = config.model.unet.out_channels
+        self.pad_size = config.data.img_size[0]
+        self.slc_t = config.data.slice_thickness // 2
+        self.device = device
+        self.dtype = dtype
+
+        if model is None:
+            model = UNet(**config["model"]["unet"])
+
+            state_dict = remove_module_in_state_dict(
+                get_ema_checkpoint(torch.load(ckpt))
+            )
+            model.load_state_dict(state_dict, strict=False)  # ignore old time embedding
+        self.model = model.to(device).eval()
+
+    def forward(self, *args, **kwargs):
+        return self.predict_volume(*args, **kwargs)
+
+    @torch.no_grad()
+    def predict_volume(self, guidance, batch_size=8):
+        """
+        slice-wise parallel translation of a guidance sequence (C D H W)
+        """
+        c, d, h, w = guidance.shape
+
+        # transpose and pad to D C PAD_SIZE PAD_SIZE
+        guidance = guidance.permute(1, 0, 2, 3)
+        guidance_pad = -torch.ones(
+            (d + self.slc_t * 2, c, self.pad_size, self.pad_size), device=self.device
+        ).to(self.dtype)
+
+        # batch_size = 1
+        #
+        # if h > self.pad_size or w > self.pad_size:
+        #     print("Guidance larger than pad size, cropping (temp fix!!)")
+        #
+        # guidance = guidance[..., : self.pad_size, : self.pad_size]
+        # d, c, h, w = guidance.shape
+
+        off_h = (self.pad_size - h) // 2
+        off_w = (self.pad_size - w) // 2
+        assert off_h >= 0 and off_w >= 0, "guidance too large for padding"
+        guidance_pad[
+            self.slc_t : -self.slc_t, :, off_h : off_h + h, off_w : off_w + w
+        ] = guidance.to(guidance_pad)
+        if torch.any(torch.any(torch.sum(guidance, dim=(0, 2, 3)) == 0)):
+            print("Found empty guidance channel(s), padding with zeros.")
+            zero_chan = torch.where(torch.sum(guidance, dim=(0, 2, 3)) == 0)[0]
+            guidance_pad[:, zero_chan] = 0
+
+        pred = -torch.ones(
+            (d, self.out_channels, self.pad_size, self.pad_size),
+            dtype=torch.float16,
+            device="cpu",
+        )
+
+        for i in range(0, d, batch_size):
+            batch = []
+            for j in range(i, min(i + batch_size, d)):
+                batch.append(
+                    torch.concat(
+                        [
+                            guidance_pad[j : j + self.slc_t * 2 + 1, mod]
+                            for mod in range(c)
+                        ],
+                        dim=0,
+                    )
+                )
+            batch = torch.stack(batch, dim=0)
+            with torch.autocast(dtype=self.dtype, device_type=self.device):
+                y_hat = self.model(batch)
+            pred[i : i + y_hat.shape[0]] = y_hat.cpu()
+        pred = pred.permute(1, 0, 2, 3)
+        pred = pred[:, :, off_h : off_h + h, off_w : off_w + w]
+        return pred
