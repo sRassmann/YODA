@@ -1,7 +1,8 @@
 # YODA (You Only Denoise once - or Average)
 
 "Hello there!". Welcome to the implementation of YODA (You Only Denoise once - or Average) 
-as described in the paper ["Regression is all you need for medical image translation"](https://arxiv.org/pdf/2505.02048) (see [here for a visual abstract](https://arxiv.org/src/2505.02048v1/anc/Media_file_YODA_Regression_is_all_you_need.mp4))
+as described in the paper ["Regression is all you need for medical image translation"](https://ieeexplore.ieee.org/document/11322583) 
+(see [here for a visual abstract](https://doi.org/10.1109/TMI.2025.3650412/mm1))
 
 Our key findings are:
  1. Using 2.5D diffusion, we can achieve [highly accurate 3D image synthesis](#diffusion-sampling-noise-imitation)
@@ -9,13 +10,39 @@ avoiding artifacts from [2D slice-wise synthesis](#comparison-to-other-methods).
  2. Using regression sampling, we can achieve [highly accurate noise-free image synthesis](#regression-sampling-noise-free-prediction)
 avoiding the need for expensive diffusion sampling and averaging multiple images to achieve noise suppression.
  3. By averaging several diffusion images to approximate the expected value of the random diffusion sampling process in ExpA
-sampling, we show that [diffusion and regression sampling are equivalent](#expa-sampling-simulated-signal-averages)
+sampling, we show that [diffusion and regression sampling are equivalent](#expa-sampling-simulated-signal-averages)[rs_example_end2end.sh](scripts/rs_example_end2end.sh)
 i.e. the additional generation of fine-grained high-frequency details is non-systematic and mainly imitates acquisition noise
 
 
 <p align="center">
   <img src="https://i.imgflip.com/9nwe3z.jpg" alt = "Star Wars meme" style="width:400px;"/>  
 </p>
+
+## TLDR: how to run the model
+From the repo root, run single-subject denoising with the `wrapper.py` entrypoint (it will conform inputs and run prediction):
+
+```bash
+python wrapper.py \
+  -r output/<RUN_NAME> \
+  -c ckpt/last.pth \
+  -o /path/to/save/pred.nii.gz \
+  /path/to/guidance_1.nii.gz /path/to/guidance_2.nii.gz \
+  --mask /path/to/mask.nii.gz  # optional to define ROI
+```
+Note that this assumes `guidance_1` and `guidance_2` to be co-registered and ordered according to the `guidance_sequences` specified in the model's config (e.g. `t1` and `t2`).
+To get the appropriate python environment user docker/singularity (see [Code Instructions](#Code-instructions) for details).
+
+### Example script
+To process the example RS subject end-to-end (download → unzip → build singularity images → FreeSurfer registration → wrapper inference), run:
+
+```bash
+export RUN_DIR=/path/to/run/dir # should contain config.yml and ckpt/last.pth
+export FS_LICENSE=/path/to/your/freesurfer/license.txt  # set path to your FreeSurfer license
+bash scripts/rs_example_end2end.sh
+```
+The *FreeSurfer* license can be obtained for free from the [FreeSurfer website](https://surfer.nmr.mgh.harvard.edu/registration.html#license).
+
+Alternatively you can replace 
 
 ## What to Expect
 Here are some example results demonstrating YODA's performance on [the public test case of the Rhineland study (RS)](https://zenodo.org/records/11186582) for translating T1w and T2w to FLAIR images.
@@ -85,7 +112,7 @@ docker pull srassmann/dif
 ### Singularity
 Alternatively, the docker image can be converted to a singularity image using the following command:
 ```bash
-SING_FILE=$HOME/singularity/${USER}_dagobah.sif
+SING_FILE=$HOME/singularity/dagobah.sif
 singularity build $SING_FILE docker://srassmann/dif:latest
 ```
 
@@ -271,14 +298,14 @@ RUN=rs_FLAIR_from_T1T2  # name of the run, the main configs are taken from outpu
 OUTNAME=predict_RS_example
 CONF=configs/inference_schedulers/Regression.yml  # define regression sampling
 SHARED_ARGS=" -r $RUN -dj $JASON -dd $CONFORMED_DATA"  # shared arguments
-python predict/2d_yoda_predict.py $SHARED_ARGS $CONF -o $OUTNAME
+python predict/yoda_dm_predict.py $SHARED_ARGS $CONF -o $OUTNAME
 ```
 Congrats, you have just used the force of YODA to predict a noise-free FLAIR image from T1w and T2w.
 
 If you now want to also predict the other views for view aggregation, you can additionally run the following commands:
 ```bash
-python predict/2d_yoda_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_cor -sd coronal
-python predict/2d_yoda_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_sag -sd sagittal
+python predict/yoda_dm_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_cor -sd coronal
+python predict/yoda_dm_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_sag -sd sagittal
 python scripts/postprocessing/average_echos.py  output/$RUN/${OUTNAME}* --o output/$RUN/${OUTNAME}_rms -s "pred_flair.nii.gz"  # average the views
 ``` 
 The view-aggregation results are in `output/$RUN/${OUTNAME}_rms/subj_0000/pred_flair.nii.gz`.
@@ -288,9 +315,9 @@ Note: experts use the `--force` flag to maximize YODA's capabilities.
 Sampling without a mask (as specified in `$JASONwM`), can be done as:
 ```bash
 SHARED_ARGS=" -r $RUN -dj $JASONwM -dd $CONFORMED_DATA"  # shared arguments
-python predict/2d_yoda_predict.py $SHARED_ARGS $CONF -o $OUTNAME -om
-python predict/2d_yoda_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_cor -sd coronal -om
-python predict/2d_yoda_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_sag -sd sagittal -om
+python predict/yoda_dm_predict.py $SHARED_ARGS $CONF -o $OUTNAME -om
+python predict/yoda_dm_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_cor -sd coronal -om
+python predict/yoda_dm_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_sag -sd sagittal -om
 rm -r output/$RUN/${OUTNAME}_rms
 python scripts/postprocessing/average_echos.py  output/$RUN/${OUTNAME}* --o output/$RUN/${OUTNAME}_rms -s "pred_flair.nii.gz"  # average the views
 ````
@@ -304,7 +331,7 @@ NEX=4  # how many images to average, can also be one
 LAZY=250  # truncation, i.e. step to which to skip --> here the diffusion will skip from step 999 -> 250 sparing 1/4 of compute
 MEXds=250  # expectation approximation diversion step --> step from which on to diverge into individual sampling trajectories 
 OUTNAME=predict_RS_example_diffusion_expa$NEX
-python predict/25d_yoda_predict.py $SHARED_ARGS -o $OUTNAME -cor $RUN -sag $RUN \
+python predict/yoda_dm_predict_twoFiveD.py $SHARED_ARGS -o $OUTNAME -cor $RUN -sag $RUN \
   -nex $NEX -lazy $LAZY -mexds $MEXds
 ```
 Here, `-cor` and `-sag` could be distinct, view-specific models. Yet, we don't usually do that as we found no benefit for the extra training effort.
@@ -320,7 +347,7 @@ For e.g. the IXI (which does not have a FLAIR) sequence you'd also to need speci
 
 To simplify we can alternatively merge the [corresponding config](configs/datasets/ixi_test.yml) like so:
 ```bash
-python predict/2d_yoda_predict.py $SHARED_ARGS -o $OUTNAME configs/inference_schedulers/Regression.yml configs/datasets/ixi_test.yml
+python predict/yoda_dm_predict.py $SHARED_ARGS -o $OUTNAME configs/inference_schedulers/Regression.yml configs/datasets/ixi_test.yml
 ```
 Note that when using multiple configs, they overwrite each other (from right to left),
 i.e. the model config `output/$RUN/config.yml` is overwritten by `**/Regression.yml`, which is again overwritten by `**ixi_test.yml`.
@@ -380,3 +407,15 @@ We also provide a template for SLURM jobs ([`batch/example_train_job_slurm.sh`](
 
 Congrats, you have now trained your very own first YODA model! 
 "I feel the force is strong with you."
+
+
+## Citation
+```bibtex
+@article{rassmann2026regression,
+  title={Regression is all you need for medical image translation},
+  author={Rassmann, Sebastian and K{\"u}gler, David and Ewert, Christian and Reuter, Martin},
+  journal={IEEE Transactions on Medical Imaging},
+  year={2026},
+  publisher={IEEE}
+}
+```

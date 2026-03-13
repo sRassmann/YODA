@@ -93,6 +93,31 @@ class RandomMaskIntensityd(MapTransform, Randomizable):
         return d
 
 
+# fmt: off
+label_map = {0: 0, 2: 1, 3: 2, 4: 3, 5: 3, 7: 1, 8: 2, 10: 2, 11: 2, 12: 2, 13: 2, 14: 3, 15: 3, 16: 2, 17: 2, 18: 2, 24: 3, 26: 2, 28: 1, 31: 2, 41: 1, 42: 2, 43: 3, 44: 3, 46: 1, 47: 2, 49: 2, 50: 2, 51: 2, 52: 2, 53: 2, 54: 2, 58: 2, 60: 1, 63: 2, 77: 1}
+# fmt: on
+
+
+# label remapping to 4 classes from FreeSurfer/FastSurfer for BME-X training
+class LabelRemapD(MapTransform):
+    def __init__(self, keys, label_map: dict = label_map, allow_missing_keys=False):
+        super().__init__(keys, allow_missing_keys)
+        self.label_map = label_map
+        # LUT tensor for fast vectorized mapping
+        max_label = max(label_map.keys())
+        lut = torch.zeros(max_label + 1, dtype=torch.long)
+        for k, v in label_map.items():
+            lut[k] = v
+        self.lut = lut
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.keys:
+            x = d[key].long()
+            d[key] = self.lut[x]
+        return d
+
+
 def remove_channel_dim(x):
     return x.squeeze(0)
 

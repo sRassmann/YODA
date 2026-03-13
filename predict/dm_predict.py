@@ -5,6 +5,7 @@ sys.path.append(os.path.realpath(os.getcwd()))
 
 import argparse
 import torch
+import matplotlib.pyplot as plt  # debug
 
 from lib.datasets import get_datasets
 from lib.inference import (
@@ -33,7 +34,9 @@ def main(
     check_if_exists=False,
 ):
     dtype = parse_dtype(config.trainer.dtype)
-    ckpt = os.path.join("output", run_name, "ckpt", ckpt_name)
+    if not "/" in ckpt_name:
+        ckpt_name = f"ckpt/{ckpt_name}"
+    ckpt = os.path.join(run_name, ckpt_name)
 
     inf_model = Sr3InferenceModel(
         config,
