@@ -42,7 +42,8 @@ bash scripts/rs_example_end2end.sh
 ```
 The *FreeSurfer* license can be obtained for free from the [FreeSurfer website](https://surfer.nmr.mgh.harvard.edu/registration.html#license).
 
-Alternatively you can replace 
+Note that *FreeSurfer* is only used for cross-modality registration of the input, i.e. for single-input translation this is not needed.
+Alternatively, you can use any other registration tools by replacing the registration code with your tool of choice.
 
 ## What to Expect
 Here are some example results demonstrating YODA's performance on [the public test case of the Rhineland study (RS)](https://zenodo.org/records/11186582) for translating T1w and T2w to FLAIR images.
