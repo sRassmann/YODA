@@ -64,6 +64,7 @@ fi
 SING_BINDS=(
   "-B" "$REPO_ROOT:$REPO_ROOT"
   "-B" "$PROCESSING_PATH:$PROCESSING_PATH"
+  "-B" "$RUN_DIR:$RUN_DIR":ro
 )
 
 run_yoda_py() {
@@ -73,8 +74,7 @@ run_yoda_py() {
 run_fs() {
   # FreeSurfer tools sometimes want SUBJECTS_DIR; we don't use it here but set it anyway.
   singularity exec "${SING_NV_ARGS[@]}" \
-    -B "$PROCESSING_PATH:$PROCESSING_PATH" \
-    -B "$REPO_ROOT:$REPO_ROOT" \
+    "${SING_BINDS[@]}"
     -B "$FS_LICENSE:$FS_LICENSE":ro \
     --env SUBJECTS_DIR="$PROCESSING_PATH/freesurfer_subjects" \
     --env FS_LICENSE="${FS_LICENSE:-}" \

@@ -33,14 +33,15 @@ Note that this assumes `guidance_1` and `guidance_2` to be co-registered and ord
 To get the appropriate python environment user docker/singularity (see [Code Instructions](#Code-instructions) for details).
 
 ### Example script
-To process the example RS subject end-to-end (download → unzip → build singularity images → FreeSurfer registration → wrapper inference), run:
-
+`[rs_example_end2end.sh](scripts/rs_example_end2end.sh)` provides a script to predict an example RS participant's FLAIR using a pre-trained model (i.e. download → unzip → build singularity images → FreeSurfer registration → wrapper inference).
+To run it, simply set the appropriate paths in the script and run it:
 ```bash
 export RUN_DIR=/path/to/run/dir # should contain config.yml and ckpt/last.pth
 export FS_LICENSE=/path/to/your/freesurfer/license.txt  # set path to your FreeSurfer license
 bash scripts/rs_example_end2end.sh
 ```
 The *FreeSurfer* license can be obtained for free from the [FreeSurfer website](https://surfer.nmr.mgh.harvard.edu/registration.html#license).
+The `$RUN_DIR` should contain the pre-trained model weights and model `config.yml` (no need to change). Both will be released on Zenodo (link tba).
 
 Note that *FreeSurfer* is only used for cross-modality registration of the input, i.e. for single-input translation this is not needed.
 Alternatively, you can use any other registration tools by replacing the registration code with your tool of choice.
@@ -159,8 +160,12 @@ E.g. to reproduce FLAIR synthesis in the Rhineland study using the [released exa
 ```bash
 RAW_DATA=../data/rs_example_raw
 mkdir -p $RAW_DATA
-wget https://zenodo.org/records/11186582/files/sub_rs_mri_raw.zip -o ../data/rs_example
-unzip -j $RAW_DATA/sub_rs_mri_raw.zip sub_rs_mri_raw/T1_RMS.nii.gz sub_rs_mri_raw/T2_caipi.nii.gz sub_rs_mri_raw/FLAIR.nii.gz -d $RAW_DATA && trash $RAW_DATA/sub_rs_mri_raw.zip
+wget https://zenodo.org/records/11186582/files/sub_rs_mri_raw.zip -O $RAW_DATA/sub_rs_mri_raw.zip
+unzip -j $RAW_DATA/sub_rs_mri_raw.zip sub_rs_mri_raw/T1_RMS.nii.gz sub_rs_mri_raw/T2_caipi.nii.gz sub_rs_mri_raw/FLAIR.nii.gz -d $RAW_DATA/subj_0000
+# rm $RAW_DATA/sub_rs_mri_raw.zip  # not needed anymore, so you can delete it to save space
+```
+You should now have the following directory structure:
+```
 tree $RAW_DATA
 ../data/rs_example/
 ├── subj_0000
@@ -179,13 +184,16 @@ In the case (like here) that the data is not already registered and resampled, d
 
 ```bash
 REGISTERED_DATA=../data/rs_example_registered
-SOURCE_MODS=("T1_RMS T2_caipi")
+SOURCE_MODS=("T1_RMS" "T2_caipi")
 TARGET_MOD="FLAIR"
 mkdir -p $REGISTERED_DATA
 for subj in $RAW_DATA/*; do
+  if [ ! -d "$subj" ]; then 
+    continue 
+  fi
   subj_name=$(basename $subj)
   mkdir -p $REGISTERED_DATA/$subj_name
-  ln -s  $(realpath $RAW_DATA/$subj_name/FLAIR.nii.gz) $REGISTERED_DATA/$subj_name/FLAIR.nii.gz
+  ln -sf  $(realpath $RAW_DATA/$subj_name)/FLAIR.nii.gz $REGISTERED_DATA/$subj_name/FLAIR.nii.gz
   for mod in $SOURCE_MODS; do
     mri_synthstrip -i $RAW_DATA/$subj_name/${mod}.nii.gz -m $REGISTERED_DATA/$subj_name/${mod}_brainmask.nii.gz --gpu
     mri_coreg --mov $RAW_DATA/$subj_name/${mod}.nii.gz --ref $REGISTERED_DATA/$subj_name/$TARGET_MOD.nii.gz --reg $REGISTERED_DATA/$subj_name/${mod}_to_${TARGET_MOD}.lta \
@@ -212,16 +220,21 @@ We rely on the [_FastSurfer_ script to robustly normalize the intensities](https
 To do so, we use the following command (assuming appropriate python env, see above, e.g. replace with
 `singularity --nv exec $SING_FILE python` and don't forget to mount the data via `-B` or, in docker via `-v`):
 ```bash
-INPUT=$REGISTERED_DATA  # change if registered otherwise
 CONFORMED_DATA=../data/rs_example_conformed
-python scripts/preprocessing/conform.py -i $INPUT -o $CONFORMED_DATA --seqs $SOURCE_MODS $TARGET_MOD
+python scripts/preprocessing/conform.py -i $REGISTERED_DATA -o $CONFORMED_DATA --seqs $SOURCE_MODS $TARGET_MOD
 ```
 Note that conformed/normalized/other pre-processed datasets (e.g. BraTS) might not require this step.
 
-Furthermore, both inference and training requires a tissue mask to define the translation ROI.
-Here, we simply use the `mri_synthstrip` masks, which are already in the original space:
+Furthermore, both inference and training profit from a tissue mask to define the translation ROI.
+Here, we simply use the `mri_synthstrip` mask, which we map to the FLAIR space:
 ```bash
-for subj in $RAW_DATA/*; do ln -s $subj/${TARGET_MOD}_brainmask.nii.gz $CONFORMED_DATA/$(basename $subj)/mask.nii.gz ; done
+mod=${SOURCE_MODS[1]}
+for subj in $REGISTERED_DATA/*; do 
+  mri_vol2vol --nearest --mov $(realpath $subj)/${mod}_brainmask.nii.gz \
+  --targ $REGISTERED_DATA/$subj_name/FLAIR.nii.gz \
+  --reg $REGISTERED_DATA/$subj_name/${mod}_to_${TARGET_MOD}.lta  \
+  --o $CONFORMED_DATA/$(basename $subj)/mask.nii.gz
+done
 ```
 
 In case you were to use _Fast/FreeSurfer_ for brain masking, you also want to map the brain mask (`aseg.auto_noCCseg.mgz`) back to the original space.
