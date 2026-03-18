@@ -18,8 +18,27 @@ i.e. the additional generation of fine-grained high-frequency details is non-sys
   <img src="https://i.imgflip.com/9nwe3z.jpg" alt = "Star Wars meme" style="width:400px;"/>  
 </p>
 
+The weights are available at [zenodo.org/records/19088324](https://zenodo.org/records/19088324). 
+The appropriate python environment can be obtained via 
+[docker](https://hub.docker.com/r/srassmann/dif)/[singularity](https://zenodo.org/records/19088324/files/dagobah.sif) 
+(see the [example script](#Example-script) and [Code Instructions](#Code-instructions) for details).
 
-The weights are available at [zenodo.org/records/19088324](https://zenodo.org/records/19088324).
+<details>
+  <summary> YODA model zoo </summary>
+    <a name="model_zoo"></a>
+
+| Checkpoint | Trans. Task | Resolution | Train. Dataset | Train. Paradigm | Citation(s)                       |
+|---|---|---|---|---|-----------------------------------|
+| [`rs_FLAIR_from_T1T2.zip`](https://zenodo.org/records/19088324/files/rs_FLAIR_from_T1T2.zip) | T1w+T2w → FLAIR | 1 mm | RS (n=1344) | Diffusion | YODA                              |
+| [`brats_FLAIR_from_T1T2.zip`](https://zenodo.org/records/19088324/files/brats_FLAIR_from_T1T2.zip) | T1w+T2w → FLAIR | 1 mm (resampled) | BraTS ’23 (n=1270) | Diffusion | YODA                              |
+| [`rs_FLAIR_from_T1.zip`](https://zenodo.org/records/19088324/files/rs_FLAIR_from_T1.zip) | T1w → FLAIR | 1 mm | RS (n=1344) | Diffusion | YODA, ISMRM 2026 (FLAIR-WMH)      |
+| [`rs_FLAIR_from_T2.zip`](https://zenodo.org/records/19088324/files/rs_FLAIR_from_T2.zip) | T2w → FLAIR | 1 mm | RS (n=1344) | Diffusion | YODA, ISMRM 2026 (FLAIR-WMH)      |
+| [`ixi_T2_from_T1PD.zip`](https://zenodo.org/records/19088324/files/ixi_T2_from_T1PD.zip) | T1w+PD → T2w | ~1 mm | IXI (n=511) | Diffusion | YODA                              |
+| [`GoldAtlas_CT_from_MR.zip`](https://zenodo.org/records/19088324/files/GoldAtlas_CT_from_MR.zip) | T1w+T2w → CT | ~1×1×3 mm | Gold Atlas (n=11) | Diffusion | YODA                              |
+| [`rs_T1_from_FLAIR.zip`](https://zenodo.org/records/19088324/files/rs_T1_from_FLAIR.zip) | FLAIR → T1w | 1 mm | RS (n=2500) | Regression | YODA, ISMRM 2026 (T1w-FastSurfer) |
+| [`rs_T1_from_T2w.zip`](https://zenodo.org/records/19088324/files/rs_T1_from_T2w.zip) | FLAIR → T2w | 1 mm | RS (n=2500) | Regression | YODA, ISMRM 2026 (T1w-FastSurfer) |
+</details>
+
 
 ## TLDR: how to run the model
 From the repo root, run single-subject denoising with the `wrapper.py` entrypoint (it will conform inputs and run prediction):
@@ -28,15 +47,11 @@ From the repo root, run single-subject denoising with the `wrapper.py` entrypoin
 python wrapper.py \
   -r output/<RUN_NAME> \
   -c ckpt/last.pth \
-  -o /path/to/save/pred.nii.gz \
+  -o /path/to/output/pred.nii.gz \
   /path/to/guidance_1.nii.gz /path/to/guidance_2.nii.gz \
   --mask /path/to/mask.nii.gz  # optional to define ROI
 ```
 Note that this assumes `guidance_1` and `guidance_2` to be co-registered and ordered according to the `guidance_sequences` specified in the model's `config.yml` (e.g. `t1` and `t2`).
-
-The appropriate python environment can be obtained via 
-[docker](https://hub.docker.com/r/srassmann/dif)/[singularity](https://zenodo.org/records/19088324/files/dagobah.sif) 
-(see [Code Instructions](#Code-instructions) for details).
 
 
 ### Example script
@@ -60,6 +75,9 @@ and uses it for inference. Note: this will build the FreeSurfer image from docke
  
 Optional environment variables:
 - `PROCESSING_PATH` (where data + outputs go), `SINGULARITY_DIR` (defaults to `$HOME/singularity`), `RUN_DIR`, `CKPT_PATH`, `OUT_PRED`.
+
+Note that this is all quite inefficient and requires rather extensive download and setups.
+For batch processing of multiple subjects, rather follow the [code instructions](#Code-instructions) for efficient processing.
 
 ## What to Expect
 Here are some example results demonstrating YODA's performance on [the public test case of the Rhineland study (RS)](https://zenodo.org/records/11186582) for translating T1w and T2w to FLAIR images.
@@ -115,7 +133,7 @@ you would get the same image quality (in terms of SSIM) as with single-step regr
 </details>
 
 # Code Instructions
-Here are some instructions to run our code and replicate some of our results:
+Here are some instructions to run YODA (batch) inference and training:
 
 ## Code dependencies
 
@@ -134,7 +152,7 @@ Alternatively, the docker image can be converted to a singularity image using th
 SING_FILE=$HOME/singularity/dagobah.sif
 singularity build $SING_FILE docker://srassmann/dif:latest
 ```
-Note that we provide the pre-build file at [zenodo](https://zenodo.org/records/19088324).
+Note that we provide the pre-build `.sif` file at [zenodo](https://zenodo.org/records/19088324).
 
 We will for now assume that `python` is from the correct environment, e.g. by using `singularity exec $SING_FILE python` or `docker exec -v <binds> -it $USER/dif python`.
 This could be done via setting in your bash session:
@@ -164,16 +182,11 @@ which is rather bothersome for diffusion sampling (again, not really a need for 
 
 ## Inference
 
-### Weights 
-
-Model weights and a ready-to-run singularity image are available on Zenodo:
-
-- https://zenodo.org/records/19088324
-
-We expect the model weights to be placed in `output/<run_name>/ckpt`, where `<run_name>` is the name of the run and the model's base config to be in `output/<run_name>/config.yml`.
+### Weights
+The pre-trained weights can be downloaded from [zenodo](https://zenodo.org/records/19088324) and should be stored in `output/<run_name>/ckpt/last.pth`.
+See the [example script](#Example-script) for an example of how to download and set up the weights and the [Model Zoo](#model_zoo) for the available pre-trained YODA models.
 
 ### Data organization
-
 For simplicity, we assume the data to be stored in `../data/<dataset_name>` where `<dataset_name>` is the name of the dataset.
 Within is directory, we expect one folder per subject, each containing the modalities as `.nii.gz` files.  
 E.g. to reproduce FLAIR synthesis in the Rhineland study using the [released example images](https://zenodo.org/records/11186582) (as shown above), the data should be organized as follows:
