@@ -10,13 +10,16 @@ avoiding artifacts from [2D slice-wise synthesis](#comparison-to-other-methods).
  2. Using regression sampling, we can achieve [highly accurate noise-free image synthesis](#regression-sampling-noise-free-prediction)
 avoiding the need for expensive diffusion sampling and averaging multiple images to achieve noise suppression.
  3. By averaging several diffusion images to approximate the expected value of the random diffusion sampling process in ExpA
-sampling, we show that [diffusion and regression sampling are equivalent](#expa-sampling-simulated-signal-averages)[rs_example_end2end.sh](scripts/rs_example_end2end.sh)
+sampling, we show that [diffusion and regression sampling are equivalent](#expa-sampling-simulated-signal-averages)
 i.e. the additional generation of fine-grained high-frequency details is non-systematic and mainly imitates acquisition noise
 
 
 <p align="center">
   <img src="https://i.imgflip.com/9nwe3z.jpg" alt = "Star Wars meme" style="width:400px;"/>  
 </p>
+
+
+The weights are available at [zenodo.org/records/19088324](https://zenodo.org/records/19088324).
 
 ## TLDR: how to run the model
 From the repo root, run single-subject denoising with the `wrapper.py` entrypoint (it will conform inputs and run prediction):
@@ -29,25 +32,39 @@ python wrapper.py \
   /path/to/guidance_1.nii.gz /path/to/guidance_2.nii.gz \
   --mask /path/to/mask.nii.gz  # optional to define ROI
 ```
-Note that this assumes `guidance_1` and `guidance_2` to be co-registered and ordered according to the `guidance_sequences` specified in the model's config (e.g. `t1` and `t2`).
-To get the appropriate python environment user docker/singularity (see [Code Instructions](#Code-instructions) for details).
+Note that this assumes `guidance_1` and `guidance_2` to be co-registered and ordered according to the `guidance_sequences` specified in the model's `config.yml` (e.g. `t1` and `t2`).
+
+The appropriate python environment can be obtained via 
+[docker](https://hub.docker.com/r/srassmann/dif)/[singularity](https://zenodo.org/records/19088324/files/dagobah.sif) 
+(see [Code Instructions](#Code-instructions) for details).
+
 
 ### Example script
-`[rs_example_end2end.sh](scripts/rs_example_end2end.sh)` provides a script to predict an example RS participant's FLAIR using a pre-trained model (i.e. download → unzip → build singularity images → FreeSurfer registration → wrapper inference).
-To run it, simply set the appropriate paths in the script and run it:
+To process the example RS subject end-to-end (download → unzip → fetch model weights → docker/singularity runtime setup → FreeSurfer registration → wrapper inference), run:
 ```bash
-export RUN_DIR=/path/to/run/dir # should contain config.yml and ckpt/last.pth
+export RUN_DIR=/path/to/run/dir # should contain config.yml and ckpt/last.pth, if not set the script will download the pre-trained RS run from Zenodo
 export FS_LICENSE=/path/to/your/freesurfer/license.txt  # set path to your FreeSurfer license
-bash scripts/rs_example_end2end.sh
+bash rs_example_end2end.sh
 ```
-The *FreeSurfer* license can be obtained for free from the [FreeSurfer website](https://surfer.nmr.mgh.harvard.edu/registration.html#license).
-The `$RUN_DIR` should contain the pre-trained model weights and model `config.yml` (no need to change). Both will be released on Zenodo (link tba).
+Before running, set at least:
+- `FS_LICENSE`: path to your FreeSurfer license file (required by FreeSurfer). 
+Can be obtained for free from [here](https://surfer.nmr.mgh.harvard.edu/registration.html#freesurfer-license).
 
-Note that *FreeSurfer* is only used for cross-modality registration of the input, i.e. for single-input translation this is not needed.
-Alternatively, you can use any other registration tools by replacing the registration code with your tool of choice.
+By default, the script will download the pre-trained RS run (config + checkpoint) from Zenodo if `RUN_DIR` is not set.
+
+Choose a runtime via `RUNTIME` (default: `singularity`):
+- `RUNTIME=singularity`: downloads Singularity/Apptainer container from [Zenodo](https://zenodo.org/records/19088324/files/dagobah.sif)
+and uses it for inference. Note: this will build the FreeSurfer image from dockerhub.
+- `RUNTIME=docker`: runs inference in the [docker image](https://hub.docker.com/r/srassmann/dif).
+- `RUNTIME=local`: runs inference with your currently active python (e.g. conda env) and FreeSurfer.
+ 
+Optional environment variables:
+- `PROCESSING_PATH` (where data + outputs go), `SINGULARITY_DIR` (defaults to `$HOME/singularity`), `RUN_DIR`, `CKPT_PATH`, `OUT_PRED`.
 
 ## What to Expect
 Here are some example results demonstrating YODA's performance on [the public test case of the Rhineland study (RS)](https://zenodo.org/records/11186582) for translating T1w and T2w to FLAIR images.
+You can download the results as NIfTI from [zenodo](https://zenodo.org/records/19088324/files/expected_output-FLAIR_from_T1T2.nii.gz) (Note that the output is cropped, viewers such as `freeview` should be able to handle that, tho).
+
 [Click here](#Code-instructions) to skip to the code instructions and reproduce our results.
 
 ### Regression sampling (noise-free prediction)
@@ -117,6 +134,7 @@ Alternatively, the docker image can be converted to a singularity image using th
 SING_FILE=$HOME/singularity/dagobah.sif
 singularity build $SING_FILE docker://srassmann/dif:latest
 ```
+Note that we provide the pre-build file at [zenodo](https://zenodo.org/records/19088324).
 
 We will for now assume that `python` is from the correct environment, e.g. by using `singularity exec $SING_FILE python` or `docker exec -v <binds> -it $USER/dif python`.
 This could be done via setting in your bash session:
@@ -148,7 +166,10 @@ which is rather bothersome for diffusion sampling (again, not really a need for 
 
 ### Weights 
 
-Model weights will be released on Zenodo (link tba).  
+Model weights and a ready-to-run singularity image are available on Zenodo:
+
+- https://zenodo.org/records/19088324
+
 We expect the model weights to be placed in `output/<run_name>/ckpt`, where `<run_name>` is the name of the run and the model's base config to be in `output/<run_name>/config.yml`.
 
 ### Data organization
