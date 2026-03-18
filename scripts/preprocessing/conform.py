@@ -6,7 +6,7 @@ from tqdm import tqdm
 import sys
 
 sys.path.append("..")
-from flairsyn.lib.utils.fastsurfer_conform import rescale
+from lib.utils.fastsurfer_conform import rescale
 
 
 def main(args):
