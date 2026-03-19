@@ -346,14 +346,14 @@ RUN=rs_FLAIR_from_T1T2  # name of the run, the main configs are taken from outpu
 OUTNAME=predict_RS_example
 CONF=configs/inference_schedulers/Regression.yml  # define regression sampling
 SHARED_ARGS=" -r $RUN -dj $JASON -dd $CONFORMED_DATA"  # shared arguments
-python predict/yoda_dm_predict.py $SHARED_ARGS $CONF -o $OUTNAME
+python predict/dm_predict.py $SHARED_ARGS $CONF -o $OUTNAME
 ```
 Congrats, you have just used the force of YODA to predict a noise-free FLAIR image from T1w and T2w.
 
 If you now want to also predict the other views for view aggregation, you can additionally run the following commands:
 ```bash
-python predict/yoda_dm_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_cor -sd coronal
-python predict/yoda_dm_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_sag -sd sagittal
+python predict/dm_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_cor -sd coronal
+python predict/dm_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_sag -sd sagittal
 python scripts/postprocessing/average_echos.py  output/$RUN/${OUTNAME}* --o output/$RUN/${OUTNAME}_rms -s "pred_flair.nii.gz"  # average the views
 ``` 
 The view-aggregation results are in `output/$RUN/${OUTNAME}_rms/subj_0000/pred_flair.nii.gz`.
@@ -363,9 +363,9 @@ Note: experts use the `--force` flag to maximize YODA's capabilities.
 Sampling without a mask (as specified in `$JASONwM`), can be done as:
 ```bash
 SHARED_ARGS=" -r $RUN -dj $JASONwM -dd $CONFORMED_DATA"  # shared arguments
-python predict/yoda_dm_predict.py $SHARED_ARGS $CONF -o $OUTNAME -om
-python predict/yoda_dm_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_cor -sd coronal -om
-python predict/yoda_dm_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_sag -sd sagittal -om
+python predict/dm_predict.py $SHARED_ARGS $CONF -o $OUTNAME -om
+python predict/dm_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_cor -sd coronal -om
+python predict/dm_predict.py $SHARED_ARGS $CONF -o ${OUTNAME}_sag -sd sagittal -om
 rm -r output/$RUN/${OUTNAME}_rms
 python scripts/postprocessing/average_echos.py  output/$RUN/${OUTNAME}* --o output/$RUN/${OUTNAME}_rms -s "pred_flair.nii.gz"  # average the views
 ````
@@ -379,7 +379,7 @@ NEX=4  # how many images to average, can also be one
 LAZY=250  # truncation, i.e. step to which to skip --> here the diffusion will skip from step 999 -> 250 sparing 1/4 of compute
 MEXds=250  # expectation approximation diversion step --> step from which on to diverge into individual sampling trajectories 
 OUTNAME=predict_RS_example_diffusion_expa$NEX
-python predict/yoda_dm_predict_twoFiveD.py $SHARED_ARGS -o $OUTNAME -cor $RUN -sag $RUN \
+python predict/dm_predict_twoFiveD.py $SHARED_ARGS -o $OUTNAME -cor $RUN -sag $RUN \
   -nex $NEX -lazy $LAZY -mexds $MEXds
 ```
 Here, `-cor` and `-sag` could be distinct, view-specific models. Yet, we don't usually do that as we found no benefit for the extra training effort.
@@ -387,6 +387,15 @@ Note that we use a different script `25d_` rather than `2d_`.
 Furthermore, note that diffusion sampling is inherently very time-consuming.
 Thus, if the computational force is strong in your lab,
 you can go for subject-wise parallelization [on multi-GPU systems](batch/parallel_predict_25D.sh) and on a [SLURM cluster](batch/example_array_predict_job.sh) for which we provide the scipts in the `batch` folder,
+
+
+#### Dedicated Regression models
+As Regression is all you need, we have also trained dedicated regression models, i.e. beyond single-step regression models as described in the YODA paper, such that do not have input channels for noisy inputs.
+To use these models (training paradigm = "Regression" in the Model Zoo), use the same arguments as for regressive sampling but the [`reg_predict.py`](predict/reg_predict.py) script.
+Note that we here directly implement a view-aggregation as `-va` flag (where the same checkpoint uses the same weights for all views)
+```bash
+python predict/reg_predict.py $SHARED_ARGS -o $OUTNAME -va
+```
 
 #### Dataset configs
 You can also use configs for pre-defined combinations such as data sets.
@@ -457,7 +466,8 @@ Congrats, you have now trained your very own first YODA model!
 "I feel the force is strong with you."
 
 
-## Citation
+## Citations
+Main YODA paper:
 ```bibtex
 @article{rassmann2026regression,
   title={Regression is all you need for medical image translation},
@@ -467,3 +477,22 @@ Congrats, you have now trained your very own first YODA model!
   publisher={IEEE}
 }
 ```
+FLAIR-WMH models:
+```bibtex
+@inproceedings{rassmann2026FLAIR_WMH,
+  title     = {FLAIR-less white-matter hyperintensity segmentation using YODA},
+  author    = {Sebastian Rassmann and David K{\"u}gler and Christian Ewert and Martin Reuter},
+  booktitle = {Proceedings of the ISMRM 2026 Annual Meeting},
+  year      = {2026},
+  address   = {Cape Town, South Africa},
+}
+```
+T1w-FastSurfer models:
+```bibtex
+@inproceedings{rassmann2026t1w_FastSurfer,
+  title     = {MRI contrast translation for full-brain segmentation from T2-weighted contrasts},
+  author    = {Sebastian Rassmann and David K{\"u}gler and Martin Reuter},
+  booktitle = {Proceedings of the ISMRM 2026 Annual Meeting},
+  year      = {2026},
+  address   = {Cape Town, South Africa}
+}
