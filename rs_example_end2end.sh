@@ -58,7 +58,7 @@ export FS_DOCKER_IMAGE="${FS_DOCKER_IMAGE:-freesurfer/freesurfer:7.4.1}"
 ZENODO_YODA="https://zenodo.org/records/19088324"
 YODA_SIF_URL="$ZENODO_YODA/files/dagobah.sif"
 RS_RUN_ZIP_URL="$ZENODO_YODA/files/rs_FLAIR_from_T1T2.zip"  # default, see zenodo for more
-RS_RAW_ZIP_URL="https://zenodo.org/records/11186582/files/sub_rs_mri_raw.zip"
+RS_RAW_ZIP_URL="https://zenodo.org/records/19133592/files/sub_rs_mri_struc_only.zip"
 
 ############################################
 # Derived locations

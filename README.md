@@ -80,7 +80,7 @@ Note that this is all quite inefficient and requires rather extensive download a
 For batch processing of multiple subjects, rather follow the [code instructions](#Code-instructions) for efficient processing.
 
 ## What to Expect
-Here are some example results demonstrating YODA's performance on [the public test case of the Rhineland study (RS)](https://zenodo.org/records/11186582) for translating T1w and T2w to FLAIR images.
+Here are some example results demonstrating YODA's performance on [the public test case of the Rhineland study (RS)](https://zenodo.org/records/19133592) for translating T1w and T2w to FLAIR images.
 You can download the results as NIfTI from [zenodo](https://zenodo.org/records/19088324/files/expected_output-FLAIR_from_T1T2.nii.gz) (Note that the output is cropped, viewers such as `freeview` should be able to handle that, tho).
 
 [Click here](#Code-instructions) to skip to the code instructions and reproduce our results.
@@ -189,12 +189,12 @@ See the [example script](#Example-script) for an example of how to download and 
 ### Data organization
 For simplicity, we assume the data to be stored in `../data/<dataset_name>` where `<dataset_name>` is the name of the dataset.
 Within is directory, we expect one folder per subject, each containing the modalities as `.nii.gz` files.  
-E.g. to reproduce FLAIR synthesis in the Rhineland study using the [released example images](https://zenodo.org/records/11186582) (as shown above), the data should be organized as follows:
+E.g. to reproduce FLAIR synthesis in the Rhineland study using the [released example images](https://zenodo.org/records/19133592) (as shown above), the data should be organized as follows:
 
 ```bash
 RAW_DATA=../data/rs_example_raw
 mkdir -p $RAW_DATA
-wget https://zenodo.org/records/11186582/files/sub_rs_mri_raw.zip -O $RAW_DATA/sub_rs_mri_raw.zip
+wget https://zenodo.org/records/19133592/files/sub_rs_mri_struc_only.zip -O $RAW_DATA/sub_rs_mri_raw
 unzip -j $RAW_DATA/sub_rs_mri_raw.zip sub_rs_mri_raw/T1_RMS.nii.gz sub_rs_mri_raw/T2_caipi.nii.gz sub_rs_mri_raw/FLAIR.nii.gz -d $RAW_DATA/subj_0000
 # rm $RAW_DATA/sub_rs_mri_raw.zip  # not needed anymore, so you can delete it to save space
 ```
