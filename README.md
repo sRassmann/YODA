@@ -13,6 +13,7 @@ avoiding the need for expensive diffusion sampling and averaging multiple images
 sampling, we show that [diffusion and regression sampling are equivalent](#expa-sampling-simulated-signal-averages)
 i.e. the additional generation of fine-grained high-frequency details is non-systematic and mainly imitates acquisition noise
 
+For dedicated denoisers (i.e. *within modality "translation"* for the sole purpose of noise suppression), see [YADO](github.com/Deep-MI/YADO) (the weights are compatible between regression YODA and YADO).
 
 <p align="center">
   <img src="https://i.imgflip.com/9nwe3z.jpg" alt = "Star Wars meme" style="width:400px;"/>  
